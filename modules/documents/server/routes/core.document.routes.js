@@ -1,3 +1,4 @@
+/*eslint-disable*/
 'use strict';
 // =========================================================================
 //
@@ -10,6 +11,15 @@ var DocumentClass = require ('../controllers/core.document.controller');
 var routes 		= require ('../../../core/server/controllers/core.routes.controller');
 var policy 		= require ('../../../core/server/controllers/core.policy.controller');
 var fs 			= require('fs');
+var minio = require('minio');
+
+var minioClient = new minio.Client({
+  endPoint: 'play.minio.io',
+  port: 9000,
+  secure: true,
+  accessKey: 'Q3AM3UQ867SPQQA43P2F',
+  secretKey: 'zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG'
+});
 
 var renderNotFound = function (url, res) {
   res.status(404).format({
@@ -242,9 +252,12 @@ module.exports = function (app) {
         if (file && file.originalname === 'this-is-a-file-that-we-want-to-fail.xxx') {
           reject('Fail uploading this file.');
         } else if (file) {
+          console.log('file: ', file); //eslint-disable-line
           var opts = { oldPath: file.path, projectCode: req.Project.code};
+          console.log('opts: ', opts);
           routes.moveFile (opts)
             .then (function (newFilePath) {
+              console.log(newFilePath);
               var readPermissions = null;
               if (req.headers.internaldocument) {
                 // Force read array to be this:
@@ -258,7 +271,11 @@ module.exports = function (app) {
               if (req.headers.datereceived) {
                 dateReceived = new Date(req.headers.datereceived);
               }
-              return model.create ({
+              var objectName = opts.projectCode + '/' + file.name;
+              minioClient.fPutObject('test-bucket', objectName, newFilePath, file, function(err, etag){
+                return console.log(err,etag);
+              })
+              var newModel = model.create ({
                 // TODO during a refactor sprint... use the defineModel function defined below
                 // Metadata related to this specific document that has been uploaded.
                 // See the document.model.js for descriptions of the parameters to supply.
@@ -296,8 +313,11 @@ module.exports = function (app) {
                 displayName             : req.body.displayname || req.body.documentfilename || file.originalname,
                 dateUploaded            : req.body.dateuploaded
               }, req.headers.inheritmodelpermissionid, readPermissions);
+              // console.log(newModel);
+              return newModel;
             })
             .then(function (d) {
+
               if (req.headers.publishafterupload === 'true') {
                 return model.publish(d);
               } else {

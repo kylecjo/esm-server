@@ -1,3 +1,4 @@
+/*eslint-disable*/
 'use strict';
 
 /**
@@ -17,7 +18,10 @@ var config = require('../config'),
 	helmet = require('helmet'),
 	flash = require('connect-flash'),
 	consolidate = require('consolidate'),
-	path = require('path');
+	path = require('path'),
+	minio = require('minio');
+
+
 
 /**
  * Initialize local variables
@@ -116,6 +120,7 @@ module.exports.initMiddleware = function (app) {
 		dest: uploaddir,
 		inMemory: false
 	}));
+
 };
 
 /**
